@@ -12,4 +12,6 @@
 #define FSSIZE       1000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define MAX_DISC_PAGES 16
+#define MAX_PSYC_PAGES 16
 #define MAX_TOTAL_PAGES 32
+#define FILE_SIZE       16*4096

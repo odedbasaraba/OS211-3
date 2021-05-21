@@ -81,9 +81,10 @@ struct trapframe {
 };
 struct file_pages
 {
+//  int num_of_pages_in_disc;
   int ofsets_in_file[MAX_DISC_PAGES];
   struct pte_t * pages_in_file[MAX_DISC_PAGES];
-  
+
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
@@ -109,9 +110,11 @@ struct proc {
   struct trapframe *trapframe; // data page for trampoline.S
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
-  struct file_pages filePages;
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
   struct file *swapFile;
+  // Task 1 eni yodea task 2 ani yodea 5 humshey tora
+  struct file_pages filePages;  //struct of the file pages
+  int num_of_total_pages;      // total pages
 };

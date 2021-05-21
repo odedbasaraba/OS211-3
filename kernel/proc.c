@@ -140,7 +140,8 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-
+  //task 1 -starting the file to 0f
+  p->swapFile=0;
   return p;
 }
 
@@ -304,7 +305,10 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  if(p->swapFile){
+    createSwapFile(np);
+    copySwapFile(np,p);
+  }
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -316,6 +320,26 @@ fork(void)
   release(&np->lock);
 
   return pid;
+}
+//TASK 1 : copy the swap file
+void
+copySwapFile(struct proc* np,struct proc* p)
+{
+    char* pageBuffer = kalloc();//save the page for the copy
+  for (int i = 0; i < MAX_DISC_PAGES; i++)
+  {
+    if(p->filePages.pages_in_file[i])
+      for (int j = 0; j < MAX_DISC_PAGES; j++)
+      {
+        if(p->filePages.ofsets_in_file[j]==i)
+          readFromSwapFile(p,pageBuffer,j,PGSIZE);
+          writeToSwapFile(np,pageBuffer,j,PGSIZE);
+
+      }
+      
+  }
+  kfree(pageBuffer);
+  
 }
 
 // Pass p's abandoned children to init.
@@ -357,7 +381,8 @@ exit(int status)
   iput(p->cwd);
   end_op();
   p->cwd = 0;
-
+  //TASK 1:remove the swap file
+  removeSwapFile(p);
   acquire(&wait_lock);
 
   // Give any children to init.
