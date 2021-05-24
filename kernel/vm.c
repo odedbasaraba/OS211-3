@@ -5,7 +5,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
-
+#include "proc.h"
 /*
  * the kernel's page table.
  */
@@ -88,11 +88,6 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } 
-    else if(*pte & PTE_PG)
-    {
-      extract_from_disc_to_ram();
-      return 0;
-    }
     else {
       if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
         return 0;
@@ -223,6 +218,7 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
 uint64
 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 {
+  struct proc *p=myproc();
   char *mem;
   uint64 a;
 
@@ -231,12 +227,22 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   oldsz = PGROUNDUP(oldsz);
   for(a = oldsz; a < newsz; a += PGSIZE){
+
+    #ifndef NONE
+    if(p->num_of_physical_pages>=16)
+    {
+      free_one_page_from_mem(p);
+    }
+    #endif
+
     mem = kalloc();
     if(mem == 0){
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
     memset(mem, 0, PGSIZE);
+    //check that there is not 16 pages inside RAM at the moment
+    //if so , move one to swap file
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
       kfree(mem);
       uvmdealloc(pagetable, a, oldsz);

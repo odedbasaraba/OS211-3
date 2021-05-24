@@ -116,5 +116,7 @@ struct proc {
   struct file *swapFile;
   // Task 1 eni yodea task 2 ani yodea 5 humshey tora
   struct file_pages filePages;  //struct of the file pages
+  int num_of_physical_pages;      // physical pages
+
   int num_of_total_pages;      // total pages
 };
