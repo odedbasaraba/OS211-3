@@ -152,7 +152,32 @@ kerneltrap()
   }
   else 
   {
+    uint64 page_start = PGROUNDDOWN((uint64)(addr));
+    if ( p->num_of_physical_pages>=MAX_PSYC_PAGES)
+      free_one_page_from_mem(p);
     
+    char * mem = kalloc();
+    if(mem == 0){
+      cprintf("out of memort\n");
+    }
+    memset(mem, 0, PGSIZE);
+    //check that there is not 16 pages inside RAM at the moment
+    //if so , move one to swap file
+    if(mappages(p->pagetable, (char *)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      panic("out of memory");
+      kfree(mem);
+    }
+    int index_of_page_to_swap;
+    for(int i =0; i<MAX_TOTAL_PAGES;i++)
+        { if(pt_entry == (pte_t *)p->filePages[i].entry)
+          { 
+               index_of_page_to_swap=i;
+               break;
+        }
+        }
+    put_in_file(pt_entry,index_of_page_to_swap);
+
+  
   }
   }
   if((sstatus & SSTATUS_SPP) == 0)
