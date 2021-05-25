@@ -79,12 +79,11 @@ struct trapframe {
   /* 272 */ uint64 t5;
   /* 280 */ uint64 t6;
 };
-struct file_pages
+struct meta_page
 {
-//  int num_of_pages_in_disc;
-  int ofsets_in_file[MAX_DISC_PAGES];
-  struct pte_t * pages_in_file[MAX_DISC_PAGES];
-
+  int offset_in_file; //if in RAM, equals to -1
+  uint64 entry;       //pte_t entry
+ 
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
@@ -115,8 +114,8 @@ struct proc {
 
   struct file *swapFile;
   // Task 1 eni yodea task 2 ani yodea 5 humshey tora
-  struct file_pages filePages;  //struct of the file pages
+  struct meta_page filePages[MAX_TOTAL_PAGES];  //struct of the file pages
+  int offsets_in_swap_file[MAX_DISC_PAGES];    //indicate which offset (*4096) in file is free
   int num_of_physical_pages;      // physical pages
-
   int num_of_total_pages;      // total pages
 };

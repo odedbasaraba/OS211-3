@@ -180,7 +180,11 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
-
+void            free_one_page_from_mem(struct proc*);
+int             get_page_to_swap(void);
+int             get_page_index(uint64);
+int             get_free_offset(struct proc * );
+void            put_in_file(pte_t* ,int );
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

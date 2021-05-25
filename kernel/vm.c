@@ -212,6 +212,69 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
   memmove(mem, src, sz);
 }
+int
+get_page_to_swap(void)
+{
+  return 1;
+
+}
+void
+int
+get_page_index(uint64 pte)
+{
+  struct proc * p =myproc();
+  for(int i =0; i<MAX_DISC_PAGES; i++)
+  { 
+    if(p->filePages[i].entry==pte)
+    {
+      return i;
+    }
+  }
+  panic("get_page_index");
+  return -1;
+}
+int
+get_free_offset(proc * p)
+{
+  for(int i=0;i<MAX_DISC_PAGES;i++)
+  { int index = 0;
+    if(p->offsets_in_swap_file[i]!=-1)
+    {
+      index =i;
+      p->offsets_in_swap_file[i]=-1;
+      break;
+    }
+  }
+  return index;
+}
+void
+put_in_file(pte_t* entry,int index_of_page_to_swap)
+{
+  struct proc * p = myproc();
+  int index_offset_free_in_file=get_free_offset(p);
+  p->filePages[index_of_page_to_swap].offsets_in_swap_file=index_offset_free_in_file;
+
+  writeToSwapFile(p,(char*)P2V((uint64) PTE2PA(entry)) , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+    (*entry)&= ~PTE_V;
+    (*entry)|= PTE_PG;
+  p->num_of_physical_pages--;
+}
+void 
+free_one_page_from_mem(struct proc* p)
+{
+ int index_of_page_to_swap = get_page_to_swap();
+  if(index_of_page_to_swap==-1){ // should not happen
+  }
+  pte_t* pte_entry_of_page_to_swap=(pte_t*)p->filePages[index_of_page_to_swap].entry;
+  put_in_file(pte_entry_of_page_to_swap,index_for_page_in_meta_page);
+  uint64 pa= PTE2PA(*pte_entry_of_page_to_swap);
+  if(pa==0)
+    panic("kfree free_one_page_from_mem");
+  kfree((void*)pa);
+  
+}
+
+
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
@@ -248,6 +311,8 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+    p->num_of_physical_pages++;
+    p->num_of_total_pages++;
   }
   return newsz;
 }
