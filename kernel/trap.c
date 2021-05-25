@@ -138,6 +138,23 @@ kerneltrap()
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
   
+  if(scause==13||scause==15)
+  {
+    struct proc * p =myproc();
+    uint64 addr = (uint64)r_stval();
+    pte_t * pt_entry= walk(p->pagetable,addr,0);
+    if(*pt_entry & PTE_V){
+    panic("page fault scause 13 or 15\n");
+  }
+  if(!(*pt_entry & PTE_PG)){
+    cprintf("seg fault\n");
+    p->killed = 1;
+  }
+  else 
+  {
+    
+  }
+  }
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)

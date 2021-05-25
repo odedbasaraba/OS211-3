@@ -218,7 +218,6 @@ get_page_to_swap(void)
   return 1;
 
 }
-void
 int
 get_page_index(uint64 pte)
 {
@@ -234,10 +233,10 @@ get_page_index(uint64 pte)
   return -1;
 }
 int
-get_free_offset(proc * p)
-{
+get_free_offset(struct proc * p)
+{ int index = 0;
   for(int i=0;i<MAX_DISC_PAGES;i++)
-  { int index = 0;
+  {
     if(p->offsets_in_swap_file[i]!=-1)
     {
       index =i;
@@ -252,9 +251,9 @@ put_in_file(pte_t* entry,int index_of_page_to_swap)
 {
   struct proc * p = myproc();
   int index_offset_free_in_file=get_free_offset(p);
-  p->filePages[index_of_page_to_swap].offsets_in_swap_file=index_offset_free_in_file;
-
-  writeToSwapFile(p,(char*)P2V((uint64) PTE2PA(entry)) , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+  p->filePages[index_of_page_to_swap].offset_in_file=index_offset_free_in_file;
+  uint64 pa = (uint64) (PTE2PA(*entry));
+  writeToSwapFile(p,(char*)P2V((uint64) (PTE2PA(*entry))) , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
     (*entry)&= ~PTE_V;
     (*entry)|= PTE_PG;
   p->num_of_physical_pages--;
@@ -266,7 +265,7 @@ free_one_page_from_mem(struct proc* p)
   if(index_of_page_to_swap==-1){ // should not happen
   }
   pte_t* pte_entry_of_page_to_swap=(pte_t*)p->filePages[index_of_page_to_swap].entry;
-  put_in_file(pte_entry_of_page_to_swap,index_for_page_in_meta_page);
+  put_in_file(pte_entry_of_page_to_swap,index_of_page_to_swap);
   uint64 pa= PTE2PA(*pte_entry_of_page_to_swap);
   if(pa==0)
     panic("kfree free_one_page_from_mem");
