@@ -185,6 +185,9 @@ int             get_page_to_swap(void);
 int             get_page_index(uint64);
 int             get_free_offset(struct proc * );
 void            put_in_file(pte_t* ,int );
+void            take_from_file(pte_t*,int);
+void            make_free_offset(struct proc * ,int );
+
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

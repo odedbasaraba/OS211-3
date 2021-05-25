@@ -247,16 +247,47 @@ get_free_offset(struct proc * p)
   return index;
 }
 void
+make_free_offset(struct proc * p,int offset)
+{ 
+  for(int i=0;i<MAX_DISC_PAGES;i++)
+  {
+    if(p->offsets_in_swap_file[i]==-1)
+    {
+      p->offsets_in_swap_file[i]=offset;
+      break;
+    }
+  }
+
+}
+void
 put_in_file(pte_t* entry,int index_of_page_to_swap)
 {
   struct proc * p = myproc();
   int index_offset_free_in_file=get_free_offset(p);
   p->filePages[index_of_page_to_swap].offset_in_file=index_offset_free_in_file;
   uint64 pa = (uint64) (PTE2PA(*entry));
-  writeToSwapFile(p,(char*)P2V((uint64) (PTE2PA(*entry))) , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+  writeToSwapFile(p,pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
     (*entry)&= ~PTE_V;
     (*entry)|= PTE_PG;
   p->num_of_physical_pages--;
+  
+}
+void 
+take_from_file(pte_t* pt_entry,int index_of_page_to_swap)
+{
+    struct proc * p = myproc();
+    char * pa =PTE2PA(*pt_entry);
+    int offset= p->filePages[index_of_page_to_swap].offset_in_file;
+    p->filePages[index_of_page_to_swap].offset_in_file=-1;//make it unused again
+    readFromSwapFile(p,pa,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
+    make_free_offset(p,offset);
+    (*pt_entry) |= PTE_V;
+    (*pt_entry) &= ~PTE_PG;
+    p->num_of_physical_pages++;
+
+
+
+
 }
 void 
 free_one_page_from_mem(struct proc* p)

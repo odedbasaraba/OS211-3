@@ -175,7 +175,7 @@ kerneltrap()
                break;
         }
         }
-    put_in_file(pt_entry,index_of_page_to_swap);
+    take_from_file(pt_entry,index_of_page_to_swap);
 
   
   }
