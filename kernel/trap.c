@@ -147,7 +147,7 @@ kerneltrap()
     panic("page fault scause 13 or 15\n");
   }
   if(!(*pt_entry & PTE_PG)){
-    cprintf("seg fault\n");
+    panic("seg fault\n");
     p->killed = 1;
   }
   else 
@@ -177,7 +177,7 @@ kerneltrap()
         }
     take_from_file(pt_entry,index_of_page_to_swap);
 
-  
+  //TODO: add the pte to the table?
   }
   }
   if((sstatus & SSTATUS_SPP) == 0)

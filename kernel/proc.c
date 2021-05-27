@@ -119,7 +119,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-
+  if( p->pid>2)     //TASK 1 :create swap file for the proccesses
+    createSwapFile(p);
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -306,7 +307,6 @@ fork(void)
 
   pid = np->pid;
   if(p->swapFile){
-    createSwapFile(np);
     copySwapFile(np,p);
   }
   release(&np->lock);
@@ -326,18 +326,17 @@ void
 copySwapFile(struct proc* np,struct proc* p)
 {
     char* pageBuffer = kalloc();//save the page for the copy
-  for (int i = 0; i < MAX_DISC_PAGES; i++)
-  {
-    if(p->filePages.pages_in_file[i])
-      for (int j = 0; j < MAX_DISC_PAGES; j++)
-      {
-        if(p->filePages.ofsets_in_file[j]==i)
-          readFromSwapFile(p,pageBuffer,j,PGSIZE);
-          writeToSwapFile(np,pageBuffer,j,PGSIZE);
-
+  for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+  { 
+    int offset = p->filePages[i].offset_in_file;
+    if(offset=-1)
+    {
+          readFromSwapFile(p,pageBuffer,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
+          writeToSwapFile(np,pageBuffer,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
+    }
       }
       
-  }
+  
   kfree(pageBuffer);
   
 }

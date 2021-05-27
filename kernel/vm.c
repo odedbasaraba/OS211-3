@@ -172,11 +172,19 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
       panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0)
+    if((*pte & (PTE_V|PTE_PG)) == 0)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
-    if(do_free){
+    if((*pte & PTE_PG)>0)
+      {
+        for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+        {
+          /* code */
+        }
+        
+      }
+    else if (do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
     }
@@ -237,10 +245,10 @@ get_free_offset(struct proc * p)
 { int index = 0;
   for(int i=0;i<MAX_DISC_PAGES;i++)
   {
-    if(p->offsets_in_swap_file[i]!=-1)
+    if(p->offsets_in_swap_file[i]==-1)
     {
       index =i;
-      p->offsets_in_swap_file[i]=-1;
+      p->offsets_in_swap_file[i]=i;
       break;
     }
   }
@@ -249,14 +257,7 @@ get_free_offset(struct proc * p)
 void
 make_free_offset(struct proc * p,int offset)
 { 
-  for(int i=0;i<MAX_DISC_PAGES;i++)
-  {
-    if(p->offsets_in_swap_file[i]==-1)
-    {
-      p->offsets_in_swap_file[i]=offset;
-      break;
-    }
-  }
+  p->offsets_in_swap_file[offset]=-1;
 
 }
 void
@@ -270,6 +271,8 @@ put_in_file(pte_t* entry,int index_of_page_to_swap)
     (*entry)&= ~PTE_V;
     (*entry)|= PTE_PG;
   p->num_of_physical_pages--;
+  sfence_vma();//flush the tlb
+  
   
 }
 void 
@@ -341,6 +344,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+    //TODO: add the pte to the new struct
     p->num_of_physical_pages++;
     p->num_of_total_pages++;
   }
@@ -412,7 +416,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
+    if((*pte & (PTE_V|PTE_PG)) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
