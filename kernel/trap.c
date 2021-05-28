@@ -143,6 +143,7 @@ kerneltrap()
     struct proc * p =myproc();
     uint64 addr = (uint64)r_stval();
     pte_t * pt_entry= walk(p->pagetable,addr,0);
+    
     if(*pt_entry & PTE_V){
     panic("page fault scause 13 or 15\n");
   }
@@ -158,16 +159,16 @@ kerneltrap()
     
     char * mem = kalloc();
     if(mem == 0){
-      cprintf("out of memort\n");
+      panic("out of memort\n");
     }
     memset(mem, 0, PGSIZE);
     //check that there is not 16 pages inside RAM at the moment
     //if so , move one to swap file
-    if(mappages(p->pagetable, (char *)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    if(mappages(p->pagetable, (uint64)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
       panic("out of memory");
       kfree(mem);
     }
-    int index_of_page_to_swap;
+    int index_of_page_to_swap=-1;
     for(int i =0; i<MAX_TOTAL_PAGES;i++)
         { if(pt_entry == (pte_t *)p->filePages[i].entry)
           { 
@@ -175,8 +176,10 @@ kerneltrap()
                break;
         }
         }
-    take_from_file(pt_entry,index_of_page_to_swap);
-
+        if(index_of_page_to_swap>-1)
+           take_from_file(pt_entry,index_of_page_to_swap);
+        else 
+          panic("no index of page to swap");
   //TODO: add the pte to the table?
   }
   }

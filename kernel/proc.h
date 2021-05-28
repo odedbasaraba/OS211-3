@@ -83,6 +83,9 @@ struct meta_page
 {
   int offset_in_file; //if in RAM, equals to -1
   uint64 entry;       //pte_t entry
+  uint64 va;           //the virtual adress
+  int is_taken;
+  int on_phys;
  
 };
 

@@ -107,6 +107,7 @@ allocproc(void)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++) {
+
     acquire(&p->lock);
     if(p->state == UNUSED) {
       goto found;
@@ -119,12 +120,12 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  if( p->pid>2)     //TASK 1 :create swap file for the proccesses
-    createSwapFile(p);
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
     release(&p->lock);
+    
     return 0;
   }
 
@@ -141,8 +142,28 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-  //task 1 -starting the file to 0f
+  //task 1 -initialinzg the new fields
   p->swapFile=0;
+  p->num_of_physical_pages = 0;
+  p->num_of_total_pages = 0;
+  #ifndef NONE
+    for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+    {
+      p->filePages[i].entry=(uint64) 0;
+      p->filePages[i].is_taken=0;
+      p->filePages[i].va=0;
+      p->filePages[i].offset_in_file=-1;
+      p->filePages[i].on_phys=0;
+    }
+    for (int  i = 0; i < MAX_PSYC_PAGES; i++)
+    {
+      p->offsets_in_swap_file[i]=i;
+    }
+    
+    
+  #endif
+   //task 1 -initialinzg the new fields
+
   return p;
 }
 
@@ -166,6 +187,18 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  //Task 1 : free new fields
+  for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+  {
+    p->filePages[i].entry=(uint64) 0;
+    p->filePages[i].is_taken=0;
+    p->filePages[i].va=0;
+    p->filePages[i].offset_in_file=-1;
+    p->filePages[i].on_phys=0;
+    }
+  p->num_of_physical_pages = 0;
+  p->num_of_total_pages = 0;  
+
 }
 
 // Create a user page table for a given process,
@@ -245,7 +278,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  p->swapFile = 0;
   release(&p->lock);
 }
 
@@ -282,7 +315,6 @@ fork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
-
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
@@ -306,9 +338,36 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+  //Task 1: copy the new fields
+  np->num_of_physical_pages= p->num_of_physical_pages;
+  np->num_of_total_pages = p->num_of_total_pages;
+
+   #ifndef NONE
   if(p->swapFile){
+    //create here?
     copySwapFile(np,p);
   }
+
+  //copy the struct
+  for(int i =0 ;i<MAX_TOTAL_PAGES;i++)
+  {
+    np->filePages[i]= p->filePages[i];
+    if(np->filePages[i].is_taken==1)
+    {
+      
+      np->filePages[i].entry =(uint64) walk(np->pagetable,np->filePages[i].va,0);
+    }
+  }
+
+  //copy the offsets
+  for (int i = 0; i <MAX_PSYC_PAGES; i++)
+  {
+    np->offsets_in_swap_file[i] =p->offsets_in_swap_file[i];
+  }
+    
+  
+   #endif
+
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -318,7 +377,10 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
-
+  if(np->pid>2)
+  { 
+    createSwapFile(np);
+  }
   return pid;
 }
 //TASK 1 : copy the swap file
@@ -329,7 +391,7 @@ copySwapFile(struct proc* np,struct proc* p)
   for (int i = 0; i < MAX_TOTAL_PAGES; i++)
   { 
     int offset = p->filePages[i].offset_in_file;
-    if(offset=-1)
+    if(offset!=-1)
     {
           readFromSwapFile(p,pageBuffer,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
           writeToSwapFile(np,pageBuffer,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
@@ -389,7 +451,6 @@ exit(int status)
 
   // Parent might be sleeping in wait().
   wakeup(p->parent);
-  
   acquire(&p->lock);
 
   p->xstate = status;
@@ -447,6 +508,7 @@ wait(uint64 addr)
     }
     
     // Wait for a child to exit.
+
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
 }
@@ -520,7 +582,9 @@ void
 yield(void)
 {
   struct proc *p = myproc();
+
   acquire(&p->lock);
+
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
@@ -560,8 +624,8 @@ sleep(void *chan, struct spinlock *lk)
   // guaranteed that we won't miss any wakeup
   // (wakeup locks p->lock),
   // so it's okay to release lk.
-
   acquire(&p->lock);  //DOC: sleeplock1
+
   release(lk);
 
   // Go to sleep.
@@ -575,7 +639,9 @@ sleep(void *chan, struct spinlock *lk)
 
   // Reacquire original lock.
   release(&p->lock);
+
   acquire(lk);
+
 }
 
 // Wake up all processes sleeping on chan.

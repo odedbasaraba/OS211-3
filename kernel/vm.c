@@ -5,7 +5,9 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
 #include "proc.h"
+
 /*
  * the kernel's page table.
  */
@@ -165,7 +167,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
   uint64 a;
   pte_t *pte;
-
+  struct proc * p =myproc();
   if((va % PGSIZE) != 0)
     panic("uvmunmap: not aligned");
 
@@ -180,13 +182,38 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       {
         for (int i = 0; i < MAX_TOTAL_PAGES; i++)
         {
-          /* code */
+          if(*pte == p->filePages[i].entry)
+          {
+            p->offsets_in_swap_file[i]=i;
+            p->filePages[i].entry=(uint64) 0;
+            p->filePages[i].is_taken=0;
+            p->filePages[i].va=0;
+            p->filePages[i].offset_in_file=-1;
+            p->filePages[i].on_phys=0;
+            break;
+          }
         }
-        
+        p->num_of_total_pages--;
       }
     else if (do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
+    
+    for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+        {
+          if(*pte == p->filePages[i].entry)
+          {
+            p->offsets_in_swap_file[i]=i;
+            p->filePages[i].entry=(uint64) 0;
+            p->filePages[i].is_taken=0;
+            p->filePages[i].va=0;
+            p->filePages[i].offset_in_file=-1;
+            p->filePages[i].on_phys=0;
+            break;
+          }
+    }
+    p->num_of_total_pages--;
+    p->num_of_physical_pages--;
     }
     *pte = 0;
   }
@@ -230,14 +257,13 @@ int
 get_page_index(uint64 pte)
 {
   struct proc * p =myproc();
-  for(int i =0; i<MAX_DISC_PAGES; i++)
+  for(int i =0; i<MAX_TOTAL_PAGES; i++)
   { 
-    if(p->filePages[i].entry==pte)
+    if(p->filePages[i].entry==pte&&p->filePages[i].is_taken)
     {
       return i;
     }
   }
-  panic("get_page_index");
   return -1;
 }
 int
@@ -245,10 +271,10 @@ get_free_offset(struct proc * p)
 { int index = 0;
   for(int i=0;i<MAX_DISC_PAGES;i++)
   {
-    if(p->offsets_in_swap_file[i]==-1)
+    if(p->offsets_in_swap_file[i]!=-1)
     {
-      index =i;
-      p->offsets_in_swap_file[i]=i;
+      index =p->offsets_in_swap_file[i];
+      p->offsets_in_swap_file[i]=-1;
       break;
     }
   }
@@ -257,17 +283,26 @@ get_free_offset(struct proc * p)
 void
 make_free_offset(struct proc * p,int offset)
 { 
-  p->offsets_in_swap_file[offset]=-1;
-
+for(int i=0;i<MAX_DISC_PAGES;i++)
+  {
+    if(p->offsets_in_swap_file[i]==-1)
+    {
+      p->offsets_in_swap_file[i]=offset;
+      break;
+    }
+  }
 }
 void
 put_in_file(pte_t* entry,int index_of_page_to_swap)
 {
   struct proc * p = myproc();
+  int index = get_page_index((uint64)entry);
   int index_offset_free_in_file=get_free_offset(p);
-  p->filePages[index_of_page_to_swap].offset_in_file=index_offset_free_in_file;
-  uint64 pa = (uint64) (PTE2PA(*entry));
-  writeToSwapFile(p,pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+  p->filePages[index].offset_in_file=index_offset_free_in_file;
+  p->filePages[index].on_phys=0;
+  p->filePages[index].entry=(uint64)entry;
+  char * pa = (char *) (PTE2PA(* entry));
+  writeToSwapFile(p,(char *)pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
     (*entry)&= ~PTE_V;
     (*entry)|= PTE_PG;
   p->num_of_physical_pages--;
@@ -279,14 +314,16 @@ void
 take_from_file(pte_t* pt_entry,int index_of_page_to_swap)
 {
     struct proc * p = myproc();
-    char * pa =PTE2PA(*pt_entry);
-    int offset= p->filePages[index_of_page_to_swap].offset_in_file;
-    p->filePages[index_of_page_to_swap].offset_in_file=-1;//make it unused again
+     char * pa = (char *) (PTE2PA(* pt_entry));
+     int index =get_page_index((uint64)pt_entry);
+    int offset= p->filePages[index].offset_in_file;
+    p->filePages[index].offset_in_file=-1;//make it unused again
     readFromSwapFile(p,pa,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
     make_free_offset(p,offset);
     (*pt_entry) |= PTE_V;
     (*pt_entry) &= ~PTE_PG;
     p->num_of_physical_pages++;
+    p->filePages[index].on_phys = 1;
 
 
 
@@ -307,7 +344,14 @@ free_one_page_from_mem(struct proc* p)
   
 }
 
-
+int
+find_free_slot(struct proc* p ){
+  for(int i=0;i<MAX_TOTAL_PAGES;++i){
+    if(p->filePages->is_taken==0)
+        return i;
+  }
+  return -1;
+}
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
@@ -344,7 +388,13 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+    pte_t* pt_entry = walk(pagetable,(uint64)a,0);
     //TODO: add the pte to the new struct
+    int index=find_free_slot(p);
+    p->filePages[index].is_taken=1;
+    p->filePages[index].va=(uint64)a;
+    p->filePages[index].entry=(uint64)pt_entry;
+
     p->num_of_physical_pages++;
     p->num_of_total_pages++;
   }
@@ -418,6 +468,16 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & (PTE_V|PTE_PG)) == 0)
       panic("uvmcopy: page not present");
+    #ifndef NONE
+    if(*pte & PTE_PG){ //original page on disk
+      pte_t *new_pte;
+      if((new_pte = walk(old,(uint64)i,1))==0){ //create entry for the copy of the page on new page table
+        panic("copyuvm: can't create pte");
+      }
+      *new_pte = *pte;
+      continue;
+    }
+    #endif
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
