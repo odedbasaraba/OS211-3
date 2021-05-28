@@ -364,7 +364,7 @@ free_one_page_from_mem(struct proc* p)
 int
 find_free_slot(struct proc* p ){
   for(int i=0;i<MAX_TOTAL_PAGES;++i){
-    if(p->filePages->is_taken==0)
+    if(p->filePages[i].is_taken==0)
         return i;
   }
   return -1;
@@ -409,6 +409,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     pte_t* pt_entry = walk(pagetable,(uint64)a,0);
     //TODO: add the pte to the new struct
     int index=find_free_slot(p);
+    printf("index : %d pte : %x \n",index,pt_entry);
     p->filePages[index].is_taken=1;
     p->filePages[index].va=(uint64)a;
     p->filePages[index].entry=(uint64)pt_entry;
