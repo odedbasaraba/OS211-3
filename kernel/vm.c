@@ -250,8 +250,13 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
 int
 get_page_to_swap(void)
 {
-  return 1;
-
+struct proc * p = myproc();
+for (int i = 0; i < MAX_TOTAL_PAGES; i++)
+{ 
+  if(p->filePages[i].on_phys)
+  return i;
+}
+return -1;
 }
 int
 get_page_index(uint64 pte)
@@ -302,7 +307,9 @@ put_in_file(pte_t* entry,int index_of_page_to_swap)
   p->filePages[index].on_phys=0;
   p->filePages[index].entry=(uint64)entry;
   char * pa = (char *) (PTE2PA(* entry));
-  writeToSwapFile(p,(char *)pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+  printf("index : %d  index_offset_free_in_file: %d\n",index,index_offset_free_in_file);
+  writeToSwapFile(p,pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
+  printf("Ggge");
     (*entry)&= ~PTE_V;
     (*entry)|= PTE_PG;
   p->num_of_physical_pages--;
@@ -333,9 +340,19 @@ void
 free_one_page_from_mem(struct proc* p)
 {
  int index_of_page_to_swap = get_page_to_swap();
+ printf("%d\n",index_of_page_to_swap);
   if(index_of_page_to_swap==-1){ // should not happen
+      panic("OMG");
   }
   pte_t* pte_entry_of_page_to_swap=(pte_t*)p->filePages[index_of_page_to_swap].entry;
+  for (int i = 0; i < 16; i++)
+  {
+  pte_t* pte_entry_of_page_to_swap=(pte_t*)p->filePages[i].entry;
+    printf("%x\n",pte_entry_of_page_to_swap);
+
+  }
+  
+  printf("%d\n",index_of_page_to_swap);
   put_in_file(pte_entry_of_page_to_swap,index_of_page_to_swap);
   uint64 pa= PTE2PA(*pte_entry_of_page_to_swap);
   if(pa==0)
@@ -367,10 +384,11 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   oldsz = PGROUNDUP(oldsz);
   for(a = oldsz; a < newsz; a += PGSIZE){
-
+    printf("num_of_total_pages: %d\n",p->num_of_total_pages);
     #ifndef NONE
     if(p->num_of_physical_pages>=16)
     {
+      printf("we need to free page pid: %d , p->num_of_physical_pages:%d , p->num_of_total_pages:%d\n" ,p->pid,p->num_of_physical_pages,p->num_of_total_pages);
       free_one_page_from_mem(p);
     }
     #endif
@@ -394,7 +412,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     p->filePages[index].is_taken=1;
     p->filePages[index].va=(uint64)a;
     p->filePages[index].entry=(uint64)pt_entry;
-
+    p->filePages[index].on_phys=1;
     p->num_of_physical_pages++;
     p->num_of_total_pages++;
   }
