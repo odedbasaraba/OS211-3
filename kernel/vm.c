@@ -259,6 +259,8 @@ for (int i = MAX_TOTAL_PAGES-1; i>=0; i--)
   if(p->filePages[i].on_phys)
     return i;
 }
+  printf("get_page_to_swap");
+
 return -1;
 }
 int
@@ -272,6 +274,8 @@ get_page_index(uint64 pte)
       return i;
     }
   }
+    printf("get_page_index");
+
   return -1;
 }
 int
@@ -291,14 +295,8 @@ get_free_offset(struct proc * p)
 void
 make_free_offset(struct proc * p,int offset)
 { 
-for(int i=0;i<MAX_DISC_PAGES;i++)
-  {
-    if(p->offsets_in_swap_file[i]==-1)
-    {
-      p->offsets_in_swap_file[i]=offset;
-      break;
-    }
-  }
+  p->offsets_in_swap_file[offset]=offset;
+
 }
 void
 put_in_file(pte_t* entry,int index_of_page_to_swap)
@@ -330,15 +328,13 @@ take_from_file(pte_t* pt_entry,int index_of_page_to_swap)
 {
     struct proc * p = myproc();
      char * pa = (char *) (PTE2PA(* pt_entry));
-     int index =get_page_index((uint64)pt_entry);
-    int offset= p->filePages[index].offset_in_file;
-    p->filePages[index].offset_in_file=-1;//make it unused again
+    int offset= p->filePages[index_of_page_to_swap].offset_in_file;
+    p->filePages[index_of_page_to_swap].offset_in_file=-1;//make it unused again
     readFromSwapFile(p,pa,OFFSET_IND2OFFSET_FILE(offset),PGSIZE);
     make_free_offset(p,offset);
     (*pt_entry) |= PTE_V;
     (*pt_entry) &= ~PTE_PG;
     p->num_of_physical_pages++;
-    p->filePages[index].on_phys = 1;
 
 
 
@@ -363,10 +359,14 @@ free_one_page_from_mem(struct proc* p)
 
 int
 find_free_slot(struct proc* p ){
+  
   for(int i=0;i<MAX_TOTAL_PAGES;i++){
+    // printf("**** p->pid %d,p->filePages[%d].is_taken= %d\n",p->pid,i,p->filePages[i].is_taken);
     if(p->filePages[i].is_taken==0)
         return i;
   }
+  // printf("findFreeSlot\n");
+  
   return -1;
 }
 
@@ -385,10 +385,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   oldsz = PGROUNDUP(oldsz);
   for(a = oldsz; a < newsz; a += PGSIZE){
     #ifndef NONE
-    if(p->num_of_physical_pages>=16)
-    {
-      free_one_page_from_mem(p);
-    }
+
     #endif
 
     mem = kalloc();
@@ -406,13 +403,17 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     }
     pte_t* pt_entry = walk(pagetable,a,0);
     //TODO: add the pte to the new struct
+    if(p->num_of_total_pages==32)
+    panic("f");
     int index=find_free_slot(p);
+    if(index!=-1){
     p->filePages[index].is_taken=1;
     p->filePages[index].va=(uint64)a;
     p->filePages[index].entry=(uint64)pt_entry;
     p->filePages[index].on_phys=1;
     p->num_of_physical_pages++;
     p->num_of_total_pages++;
+    }
   }
   return newsz;
 }
@@ -484,21 +485,26 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & (PTE_V|PTE_PG)) == 0)
       panic("uvmcopy: page not present");
-    #ifndef NONE
-    if(*pte & PTE_PG){ //original page on disk
-      pte_t *new_pte;
-      if((new_pte = walk(old,(uint64)i,1))==0){ //create entry for the copy of the page on new page table
-        panic("copyuvm: can't create pte");
-      }
-      *new_pte = *pte;
-      continue;
-    }
-    #endif
+
+
+ 
+
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
+mem=0;
+   #ifndef NONE
+   
+    if(*pte & PTE_PG){ //original page on disk
+      
+    }
+    else
+    {
     if((mem = kalloc()) == 0)
       goto err;
     memmove(mem, (char*)pa, PGSIZE);
+    }
+    #endif
+
     if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
       kfree(mem);
       goto err;

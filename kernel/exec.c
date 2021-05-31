@@ -39,13 +39,31 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  p->num_of_total_pages=0;
-  p->num_of_physical_pages=0;
+
+  if(p->pid>2){
+
   if(p->swapFile){
     removeSwapFile(p);
 
   }
       createSwapFile(p);
+        printf("swap file pointer value for pid %d in exexc: %p\n",p->pid,p->swapFile);
+
+        p->num_of_total_pages=0;
+  p->num_of_physical_pages=0;
+  for(int i=0;i<MAX_DISC_PAGES;i++){
+    p->offsets_in_swap_file[i]=i;
+    
+  }
+  for(int i=0;i<MAX_PSYC_PAGES;i++){
+    p->filePages[i].is_taken=0;;
+    p->filePages[i].offset_in_file=-1;
+    p->filePages[i].entry=0;
+    p->filePages[i].on_phys=0;
+    p->filePages[i].va=0;
+  }
+  }
+
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;

@@ -143,7 +143,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
   //task 1 -initialinzg the new fields
-  p->swapFile=0;
+  // p->swapFile=0;
   p->num_of_physical_pages = 0;
   p->num_of_total_pages = 0;
   #ifndef NONE
@@ -375,7 +375,10 @@ fork(void)
   release(&wait_lock);
   if(np->pid>2)
   { 
+
     createSwapFile(np);
+        //  printf("swap file pointer value for pid %d in fork: %p",np->pid,p->swapFile);
+
   }
 
   acquire(&np->lock);
@@ -437,13 +440,15 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
-
   begin_op();
   iput(p->cwd);
   end_op();
   p->cwd = 0;
+
   //TASK 1:remove the swap file
+  // printf("swap file pointer value for pid %d before delete: %p\n",p->pid,p->swapFile);
   removeSwapFile(p);
+
   acquire(&wait_lock);
 
   // Give any children to init.

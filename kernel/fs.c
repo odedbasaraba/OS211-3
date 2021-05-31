@@ -777,7 +777,6 @@ createSwapFile(struct proc* p)
   struct inode * in = create(path, T_FILE, 0, 0);
   iunlock(in);
   p->swapFile = filealloc();
-      printf("pid: %d swap: %d \n",p->pid,p->swapFile);
   if (p->swapFile == 0)
     panic("no slot for files on /store");
 

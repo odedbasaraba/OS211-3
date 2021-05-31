@@ -65,9 +65,56 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } 
+   
+  else if(r_scause()==13||r_scause()==15 || r_scause() == 12)
+  {
+    panic("FFFF");
+    struct proc * p =myproc();
+    uint64 addr = (uint64)r_stval();
+    pte_t * pt_entry= walk(p->pagetable,addr,0);
+     if(*pt_entry & PTE_V){
+    panic("page fault bhdhgdfghgfdh 13 or 15\n");
+  }
+  if(!(*pt_entry & PTE_PG))
+  {
+    panic("seg fault\n");
+  }
+  if(p->num_of_physical_pages>=16)
+    {
+      free_one_page_from_mem(p);
+    }
+  uint64 page_start = PGROUNDDOWN((uint64)(addr));
+  
+  char * mem = kalloc();
+  if(mem == 0){
+      panic("out of memort\n");
+  }
+    //check that there is not 16 pages inside RAM at the moment
+    //if so , move one to swap file
+  if(mappages(p->pagetable, (uint64)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      panic("out of memory");
+    }
+    int index_of_page_to_swap_inFilePages=-1;
+    for(int i =0; i<MAX_TOTAL_PAGES;i++)
+        { if(pt_entry == (pte_t *)p->filePages[i].entry)
+          { 
+               index_of_page_to_swap_inFilePages=i;
+               break;
+        }
+        }
+    if(index_of_page_to_swap_inFilePages>-1)
+     take_from_file(pt_entry,index_of_page_to_swap_inFilePages); 
+  
+
+
+  }
+  else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } 
+ 
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -137,56 +184,54 @@ kerneltrap()
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
-  if(scause==13||scause==15)
-  {
-    struct proc * p =myproc();
-    uint64 addr = (uint64)r_stval();
-    pte_t * pt_entry= walk(p->pagetable,addr,0);
+ 
 
-    if(*pt_entry & PTE_V){
-    panic("page fault scause 13 or 15\n");
-  }
-  if(!(*pt_entry & PTE_PG)){
-    panic("seg fault\n");
-    p->killed = 1;
-  }
-  else 
-  {
-    uint64 page_start = PGROUNDDOWN((uint64)(addr));
-    if ( p->num_of_physical_pages>=MAX_PSYC_PAGES)
-      free_one_page_from_mem(p);
-    
-    char * mem = kalloc();
-    if(mem == 0){
-      panic("out of memort\n");
-    }
-    memset(mem, 0, PGSIZE);
-    //check that there is not 16 pages inside RAM at the moment
-    //if so , move one to swap file
-    if(mappages(p->pagetable, (uint64)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
-      panic("out of memory");
-      kfree(mem);
-    }
-    int index_of_page_to_swap=-1;
-    for(int i =0; i<MAX_TOTAL_PAGES;i++)
-        { if(pt_entry == (pte_t *)p->filePages[i].entry)
-          { 
-               index_of_page_to_swap=i;
-               break;
-        }
-        }
-        if(index_of_page_to_swap>-1)
-           take_from_file(pt_entry,index_of_page_to_swap);
-        else 
-          panic("no index of page to swap");
-  //TODO: add the pte to the table?
-  }
-  }
   if((sstatus & SSTATUS_SPP) == 0)
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
+  if(r_scause()==13||r_scause()==15 || r_scause() == 12)
+  {
+    struct proc * p =myproc();
+    uint64 addr = (uint64)r_stval();
+    pte_t * pt_entry= walk(p->pagetable,addr,0);
+     if(*pt_entry & PTE_V){
+        panic("page fault scause 13 or 15\n");
+  }
+  if(!(*pt_entry & PTE_PG))
+  {
+    panic("seg fault\n");
+  }
+  if(p->num_of_physical_pages>=16)
+    {
+      free_one_page_from_mem(p);
+    }
+  uint64 page_start = PGROUNDDOWN((uint64)(addr));
+  
+  char * mem = kalloc();
+  if(mem == 0){
+      panic("out of memort\n");
+  }
+    //check that there is not 16 pages inside RAM at the moment
+    //if so , move one to swap file
+  if(mappages(p->pagetable, (uint64)(page_start), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      panic("out of memory");
+    }
+    int index_of_page_to_swap_inFilePages=-1;
+    for(int i =0; i<MAX_TOTAL_PAGES;i++)
+        { if(pt_entry == (pte_t *)p->filePages[i].entry)
+          { 
+               index_of_page_to_swap_inFilePages=i;
+               break;
+        }
+        }
+    if(index_of_page_to_swap_inFilePages>-1)
+     take_from_file(pt_entry,index_of_page_to_swap_inFilePages); 
+  
 
+
+  }
   if((which_dev = devintr()) == 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
