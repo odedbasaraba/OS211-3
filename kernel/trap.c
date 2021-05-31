@@ -143,7 +143,7 @@ kerneltrap()
     struct proc * p =myproc();
     uint64 addr = (uint64)r_stval();
     pte_t * pt_entry= walk(p->pagetable,addr,0);
-    
+
     if(*pt_entry & PTE_V){
     panic("page fault scause 13 or 15\n");
   }

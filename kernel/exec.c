@@ -39,8 +39,13 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  if(p->swapFile)
+  p->num_of_total_pages=0;
+  p->num_of_physical_pages=0;
+  if(p->swapFile){
     removeSwapFile(p);
+
+  }
+      createSwapFile(p);
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;

@@ -373,14 +373,14 @@ fork(void)
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
-
-  acquire(&np->lock);
-  np->state = RUNNABLE;
-  release(&np->lock);
   if(np->pid>2)
   { 
     createSwapFile(np);
   }
+
+  acquire(&np->lock);
+  np->state = RUNNABLE;
+  release(&np->lock);
   return pid;
 }
 //TASK 1 : copy the swap file
