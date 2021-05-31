@@ -186,7 +186,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
         {
           if(*pte == p->filePages[i].entry)
           {
-            p->offsets_in_swap_file[p->filePages[i].offset]=i;
+            p->offsets_in_swap_file[p->filePages[i].offset_in_file]=i;
             p->filePages[i].entry=(uint64) 0;
             p->filePages[i].is_taken=0;
             p->filePages[i].va=0;
@@ -206,6 +206,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
         {
           if(*pte == p->filePages[i].entry)
           {
+            printf("****\n");
             p->offsets_in_swap_file[ p->filePages[i].offset_in_file]=i;
             p->filePages[i].entry=(uint64) 0;
             p->filePages[i].is_taken=0;
@@ -215,6 +216,8 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             break;
           }
     }
+                printf("       ****\n");
+
     p->num_of_total_pages--;
     p->num_of_physical_pages--;
     }
@@ -280,7 +283,7 @@ get_page_index(uint64 pte)
 }
 int
 get_free_offset(struct proc * p)
-{ int index = 0;
+{ int index = -1;
   for(int i=0;i<MAX_DISC_PAGES;i++)
   {
     if(p->offsets_in_swap_file[i]!=-1)
@@ -290,6 +293,7 @@ get_free_offset(struct proc * p)
       break;
     }
   }
+  panic("No free offsets in swap file");
   return index;
 }
 void
@@ -361,7 +365,7 @@ int
 find_free_slot(struct proc* p ){
   
   for(int i=0;i<MAX_TOTAL_PAGES;i++){
-    // printf("**** p->pid %d,p->filePages[%d].is_taken= %d\n",p->pid,i,p->filePages[i].is_taken);
+    printf("**** p->pid %d,p->filePages[%d].is_taken= %d\n",p->pid,i,p->filePages[i].is_taken);
     if(p->filePages[i].is_taken==0)
         return i;
   }

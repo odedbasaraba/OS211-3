@@ -47,7 +47,7 @@ exec(char *path, char **argv)
 
   }
       createSwapFile(p);
-        printf("swap file pointer value for pid %d in exexc: %p\n",p->pid,p->swapFile);
+        // printf("swap file pointer value for pid %d in exexc: %p\n",p->pid,p->swapFile);
 
         p->num_of_total_pages=0;
   p->num_of_physical_pages=0;
@@ -55,7 +55,7 @@ exec(char *path, char **argv)
     p->offsets_in_swap_file[i]=i;
     
   }
-  for(int i=0;i<MAX_PSYC_PAGES;i++){
+  for(int i=0;i<MAX_TOTAL_PAGES;i++){
     p->filePages[i].is_taken=0;;
     p->filePages[i].offset_in_file=-1;
     p->filePages[i].entry=0;

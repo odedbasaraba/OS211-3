@@ -80,7 +80,7 @@ usertrap(void)
   {
     panic("seg fault\n");
   }
-  if(p->num_of_physical_pages>=16)
+  if(p->num_of_physical_pages>=MAX_PSYC_PAGES)
     {
       free_one_page_from_mem(p);
     }
@@ -202,7 +202,7 @@ kerneltrap()
   {
     panic("seg fault\n");
   }
-  if(p->num_of_physical_pages>=16)
+  if(p->num_of_physical_pages>=MAX_PSYC_PAGES)
     {
       free_one_page_from_mem(p);
     }

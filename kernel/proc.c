@@ -155,7 +155,7 @@ found:
       p->filePages[i].offset_in_file=-1;
       p->filePages[i].on_phys=0;
     }
-    for (int  i = 0; i < MAX_PSYC_PAGES; i++)
+    for (int  i = 0; i < MAX_DISC_PAGES; i++)
     {
       p->offsets_in_swap_file[i]=i;
     }
@@ -192,7 +192,7 @@ freeproc(struct proc *p)
     p->offsets_in_swap_file[i]=i;
     
   }
-  for(int i=0;i<MAX_PSYC_PAGES;i++){
+  for(int i=0;i<MAX_TOTAL_PAGES;i++){
     p->filePages[i].is_taken=0;;
     p->filePages[i].offset_in_file=-1;
     p->filePages[i].entry=0;
@@ -363,7 +363,7 @@ fork(void)
   }
 
   //copy the offsets
-  for (int i = 0; i <MAX_PSYC_PAGES; i++)
+  for (int i = 0; i <MAX_DISC_PAGES; i++)
   {
     np->offsets_in_swap_file[i] =p->offsets_in_swap_file[i];
   }
