@@ -188,14 +188,17 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
   //Task 1 : free new fields
-  for (int i = 0; i < MAX_TOTAL_PAGES; i++)
-  {
-    p->filePages[i].entry=(uint64) 0;
-    p->filePages[i].is_taken=0;
-    p->filePages[i].va=0;
+   for(int i=0;i<MAX_DISC_PAGES;i++){
+    p->offsets_in_swap_file[i]=i;
+    
+  }
+  for(int i=0;i<MAX_PSYC_PAGES;i++){
+    p->filePages[i].is_taken=0;;
     p->filePages[i].offset_in_file=-1;
+    p->filePages[i].entry=0;
     p->filePages[i].on_phys=0;
-    }
+    p->filePages[i].va=0;
+  }
   p->num_of_physical_pages = 0;
   p->num_of_total_pages = 0;  
 

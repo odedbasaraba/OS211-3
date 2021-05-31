@@ -186,7 +186,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
         {
           if(*pte == p->filePages[i].entry)
           {
-            p->offsets_in_swap_file[i]=i;
+            p->offsets_in_swap_file[p->filePages[i].offset]=i;
             p->filePages[i].entry=(uint64) 0;
             p->filePages[i].is_taken=0;
             p->filePages[i].va=0;
@@ -206,7 +206,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
         {
           if(*pte == p->filePages[i].entry)
           {
-            p->offsets_in_swap_file[i]=i;
+            p->offsets_in_swap_file[ p->filePages[i].offset_in_file]=i;
             p->filePages[i].entry=(uint64) 0;
             p->filePages[i].is_taken=0;
             p->filePages[i].va=0;
@@ -365,7 +365,7 @@ find_free_slot(struct proc* p ){
     if(p->filePages[i].is_taken==0)
         return i;
   }
-  // printf("findFreeSlot\n");
+  printf("findFreeSlot\n");
   
   return -1;
 }
