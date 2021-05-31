@@ -149,7 +149,9 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
+    {
       panic("remap");
+    }
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -193,7 +195,8 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             break;
           }
         }
-        p->num_of_total_pages--;
+/*         printf("UNMAP  p->num_of_total_pages--...  p->num_of_total_pages value : %d\n", p->num_of_total_pages); 
+ */        p->num_of_total_pages--;
       }
     else if (do_free){
       uint64 pa = PTE2PA(*pte);
@@ -251,10 +254,10 @@ int
 get_page_to_swap(void)
 {
 struct proc * p = myproc();
-for (int i = 1; i < MAX_TOTAL_PAGES; i++)
+for (int i = MAX_TOTAL_PAGES-1; i>=0; i--)
 { 
   if(p->filePages[i].on_phys)
-  return i;
+    return i;
 }
 return -1;
 }
@@ -264,7 +267,7 @@ get_page_index(uint64 pte)
   struct proc * p =myproc();
   for(int i =0; i<MAX_TOTAL_PAGES; i++)
   { 
-    if(p->filePages[i].entry==pte&&p->filePages[i].is_taken)
+    if((p->filePages[i].entry==pte)&&p->filePages[i].is_taken)
     {
       return i;
     }
@@ -301,20 +304,24 @@ void
 put_in_file(pte_t* entry,int index_of_page_to_swap)
 {
   struct proc * p = myproc();
-  int index = get_page_index((uint64)entry);
+ // int index = get_page_index((uint64)entry); should be the same as we got
   int index_offset_free_in_file=get_free_offset(p);
+  int index = index_of_page_to_swap;
   p->filePages[index].offset_in_file=index_offset_free_in_file;
   p->filePages[index].on_phys=0;
   p->filePages[index].entry=(uint64)entry;
-  char * pa = (char *) (PTE2PA(* entry));
-//  printf("pid: %d swap: %d \n",p->pid,p->swapFile);
+  pte_t* ent=(pte_t*)entry;
+  char * pa = (char *) (PTE2PA(* ent)); 
  
-  writeToSwapFile(p,pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE);
-  (*entry)&= ~PTE_V;
-  (*entry)|= PTE_PG;
-  printf("%x\n",*entry);
-  p->num_of_physical_pages--;
-  sfence_vma();//flush the tlb
+  if(writeToSwapFile(p,pa , OFFSET_IND2OFFSET_FILE(index_offset_free_in_file),PGSIZE)<0){
+    printf("Failed to write to swap\n");
+  }
+  else{
+  }
+    (*entry)&= ~PTE_V;
+    (*entry)|= PTE_PG;
+       p->num_of_physical_pages--;
+       sfence_vma();//flush the tlb
   
   
 }
@@ -346,6 +353,7 @@ free_one_page_from_mem(struct proc* p)
   }
   pte_t* pte_entry_of_page_to_swap=(pte_t*)p->filePages[index_of_page_to_swap].entry;
   put_in_file(pte_entry_of_page_to_swap,index_of_page_to_swap);
+  printf("FFF\n");
   uint64 pa= PTE2PA(*pte_entry_of_page_to_swap);
   if(pa==0)
     panic("kfree free_one_page_from_mem");
@@ -355,7 +363,7 @@ free_one_page_from_mem(struct proc* p)
 
 int
 find_free_slot(struct proc* p ){
-  for(int i=0;i<MAX_TOTAL_PAGES;++i){
+  for(int i=0;i<MAX_TOTAL_PAGES;i++){
     if(p->filePages[i].is_taken==0)
         return i;
   }

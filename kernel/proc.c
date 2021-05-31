@@ -377,10 +377,10 @@ fork(void)
   { 
     createSwapFile(np);
   }
+
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
-
   return pid;
 }
 //TASK 1 : copy the swap file
