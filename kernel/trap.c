@@ -137,13 +137,13 @@ kerneltrap()
   uint64 sepc = r_sepc();
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
-  
   if(scause==13||scause==15)
   {
     struct proc * p =myproc();
     uint64 addr = (uint64)r_stval();
     pte_t * pt_entry= walk(p->pagetable,addr,0);
-    
+      printf("va: %x pte: %x\n %d",addr,*pt_entry,PTE_V);
+
     if(*pt_entry & PTE_V){
     panic("page fault scause 13 or 15\n");
   }

@@ -39,8 +39,8 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  if(p->swapFile)
-    removeSwapFile(p);
+  // if(p->swapFile)
+  //   removeSwapFile(p);
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
