@@ -192,6 +192,17 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             p->filePages[i].va=0;
             p->filePages[i].offset_in_file=-1;
             p->filePages[i].on_phys=0;
+            #ifdef SCFIFO
+            p->filePages[i].nextQnumber=0;
+            #endif
+             
+    #ifdef NFUA
+    p->filePages[i].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[i]counter=0xFFFFFFFF;
+    #endif
             break;
           }
         }
@@ -213,6 +224,17 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             p->filePages[i].va=0;
             p->filePages[i].offset_in_file=-1;
             p->filePages[i].on_phys=0;
+            #ifdef SCFIFO
+            p->filePages[i].nextQnumber=0;
+            #endif
+             
+            #ifdef NFUA
+            p->filePages[i].counter=0;
+            #endif
+
+            #ifdef LAPA
+            p->filePages[i]counter=0xFFFFFFFF;
+            #endif
             break;
           }
     }
@@ -253,9 +275,110 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
   memmove(mem, src, sz);
 }
+
+#ifdef SCFIFO
+int 
+get_page_to_swap_scfifo(){
+  struct proc * p = myproc();
+  for(int i=0;i<MAX_TOTAL_PAGES;i++){ // could be while(1).
+    int minIndex=-1;
+    int qnumber_ofmin=-1;
+    for(int j=0;j<MAX_TOTAL_PAGES;j++){
+      if(p->filePages[j].on_phys&& p->filePages[j].is_taken && (minIndex==-1 ||p->filePages[j].qnumber<qnumber_ofmin))
+      {
+        minIndex=j;
+        qnumber_ofmin=p->filePages[j].qnumber;
+      }
+    }
+      if(*((pte_t*)p->filePages[minIndex].entry)& PTE_A)
+      {
+        *(pte_t*)p->filePages[minIndex].entry&= ~PTE_A; //turn off flag
+        p->filePages[j].qnumber=++p->nextQnumber; // give it a new qnumber
+      }
+      else
+        return minIndex;
+    }
+    panic("SCFIFO FAILED");
+    return -1;
+
+}
+#endif
+
+#ifdef NFUA
+int 
+get_page_to_swap_NFUA(){
+  struct proc * p = myproc();
+  
+    int minIndex=-1;
+    int counter_of_min=-1;
+    for(int j=0;j<MAX_TOTAL_PAGES;j++){
+      if(p->filePages[j].on_phys&& p->filePages[j].is_taken && (minIndex==-1 ||p->filePages[j].counter<counter_of_min))
+      {
+        minIndex=j;
+        counter_of_min=p->filePages[j].counter;
+      }
+    }
+      
+        return minIndex;
+    
+    panic("NFUA FAILED");
+    return -1;
+
+}
+#endif
+
+#ifdef LAPA 
+unsigned int countSetBits(unsigned int n)
+{
+    unsigned int count = 0;
+    while (n) {
+        count += n & 1;
+        n >>= 1;
+    }
+    return count;
+}
+int 
+get_page_to_swap_LAPA(){
+  int temp_set_bits_on;
+  struct proc * p = myproc();
+  
+    int minIndex=-1;
+    unsigned int  num_of_ones_in_min=17;//max int (that we can get)
+    int counter_of_min=-1;
+    for(int j=0;j<MAX_TOTAL_PAGES;j++){
+      if(p->filePages[j].on_phys&& p->filePages[j].is_taken 
+      {
+        temp_set_bits_on=countSetBits(p->filePages[j].counter) ;
+        if(temp_set_bits_on <num_of_ones_in_min || (temp_set_bits_on == num_of_ones_in_min &&p->filePages[j].counter<counter_of_min )){
+           minIndex=j;
+            num_of_ones_in_min=temp_set_bits_on;
+            counter_of_min=p->filePages[j].counter;
+        }
+      }
+    }
+      
+        return minIndex;
+    
+    panic("LAPA FAILED");
+    return -1;
+
+}
+#endif
+
 int
 get_page_to_swap(void)
 {
+  #ifdef SCFIFO
+    return get_page_to_swap_scfifo();
+  #endif
+  #ifdef NFUA
+    return get_page_to_swap_NFUA();
+  #endif
+
+  #ifdef LAPA
+    return get_page_to_swap_LAPA();
+  #endif
+
 struct proc * p = myproc();
 for (int i = MAX_TOTAL_PAGES-1; i>=0; i--)
 { 
@@ -281,6 +404,9 @@ get_page_index(uint64 pte)
 
   return -1;
 }
+
+
+
 int
 get_free_offset(struct proc * p)
 { int index = -1;
@@ -340,7 +466,19 @@ take_from_file(pte_t* pt_entry,int index_of_page_to_swap)
     (*pt_entry) &= ~PTE_PG;
     p->num_of_physical_pages++;
 
+    #ifdef SCFIFO
+    p->filePages[index_of_page_to_swap].qnumber=++p->nextQnumber;
+    *(pte_t*)p->filePages[index_of_page_to_swap].entry &= ~PTE_A; //turn of flag
+    #endif
 
+   
+    #ifdef NFUA
+    p->filePages[index_of_page_to_swap].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[index_of_page_to_swap]counter=0xFFFFFFFF;
+    #endif
 
 
 }
@@ -420,6 +558,14 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     
     #ifdef SCFIFO
       p->filePages[index].qnumber=++p->nextQnumber;
+    #endif
+     
+    #ifdef NFUA
+    p->filePages[index].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[index]counter=0xFFFFFFFF;
     #endif
     }
   }

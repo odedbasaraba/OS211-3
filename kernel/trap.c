@@ -69,7 +69,6 @@ usertrap(void)
    
   else if(r_scause()==13||r_scause()==15 || r_scause() == 12)
   {
-    panic("FFFF");
     struct proc * p =myproc();
     uint64 addr = (uint64)r_stval();
     pte_t * pt_entry= walk(p->pagetable,addr,0);

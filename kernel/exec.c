@@ -61,6 +61,19 @@ exec(char *path, char **argv)
     p->filePages[i].entry=0;
     p->filePages[i].on_phys=0;
     p->filePages[i].va=0;
+    #ifdef SCFIFO
+    printf("SCFIFO\n");
+    p->filePages[i].nextQnumber=0;
+    #endif
+
+    #ifdef NFUA
+    p->filePages[i].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[i]counter=0xFFFFFFFF;
+    #endif
+
   }
   }
 

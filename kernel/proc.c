@@ -153,7 +153,18 @@ found:
       p->filePages[i].is_taken=0;
       p->filePages[i].va=0;
       p->filePages[i].offset_in_file=-1;
-      p->filePages[i].on_phys=0;
+      p->filePages[i].on_phys=0;  
+      #ifdef SCFIFO
+      p->filePages[i].nextQnumber=0;
+      #endif
+       
+    #ifdef NFUA
+    p->filePages[i].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[i]counter=0xFFFFFFFF;
+    #endif
     }
     for (int  i = 0; i < MAX_DISC_PAGES; i++)
     {
@@ -198,6 +209,17 @@ freeproc(struct proc *p)
     p->filePages[i].entry=0;
     p->filePages[i].on_phys=0;
     p->filePages[i].va=0;
+    #ifdef SCFIFO
+    p->filePages[i].nextQnumber=0;
+    #endif
+     
+    #ifdef NFUA
+    p->filePages[i].counter=0;
+    #endif
+
+    #ifdef LAPA
+    p->filePages[i]counter=0xFFFFFFFF;
+    #endif
   }
   p->num_of_physical_pages = 0;
   p->num_of_total_pages = 0;  
@@ -585,6 +607,23 @@ sched(void)
   mycpu()->intena = intena;
 }
 
+#if defined(NFUA)||defined(LAPA)
+void
+updateCounterForPages(void){
+  struct proc *p = myproc();
+  for(int i=0;i<MAX_TOTAL_PAGES;i++)
+  {
+    pte_t* entry=( pte_t*)p->filePages[i].entry;
+    if(p->filePages[i].is_taken && p->filePages[i].on_phys)
+      p->filePages[i].counter>>1;
+      if(*entry & PTE_A){
+        p->filePages[i].counter |= (1<<16);
+        *entry &= ~PTE_A;
+      }
+  }
+}
+#endif
+
 // Give up the CPU for one scheduling round.
 void
 yield(void)
@@ -592,7 +631,10 @@ yield(void)
   struct proc *p = myproc();
 
   acquire(&p->lock);
+  #if defined(NFUA)||defined(LAPA)
+    updateCounterForPages();
 
+  #endif
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
