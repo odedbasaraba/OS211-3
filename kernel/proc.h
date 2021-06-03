@@ -84,10 +84,12 @@ struct meta_page
   int offset_in_file; //if in RAM, equals to -1
   uint64 entry;       //pte_t entry
   uint64 va;           //the virtual adress
-     int is_taken;
-
+  int is_taken;
   int on_phys;
 
+  #ifdef SCFIFO
+  int qnumber;              //number of Q number for scfifo
+  #endif
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
@@ -116,10 +118,14 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  struct file *swapFile;
+  struct file3 *swapFile;
   // Task 1 eni yodea task 2 ani yodea 5 humshey tora
   struct meta_page filePages[MAX_TOTAL_PAGES];  //struct of the file pages
   int offsets_in_swap_file[MAX_DISC_PAGES];    //indicate which offset (*4096) in file is free
   int num_of_physical_pages;      // physical pages
   int num_of_total_pages;      // total pages
+
+  #ifdef SCFIFO
+  int nextQnumber;              //number page will get for queue in scfifo
+  #endif
 };

@@ -417,6 +417,10 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     p->filePages[index].on_phys=1;
     p->num_of_physical_pages++;
     p->num_of_total_pages++;
+    
+    #ifdef SCFIFO
+      p->filePages[index].qnumber=++p->nextQnumber;
+    #endif
     }
   }
   return newsz;
