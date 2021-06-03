@@ -79,6 +79,7 @@ struct trapframe {
   /* 272 */ uint64 t5;
   /* 280 */ uint64 t6;
 };
+#ifndef NONE
 struct meta_page
 {
   int offset_in_file; //if in RAM, equals to -1
@@ -94,7 +95,7 @@ struct meta_page
   uint counter;             
   #endif
 };
-
+#endif
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -123,6 +124,7 @@ struct proc {
 
   struct file *swapFile;
   // Task 1 eni yodea task 2 ani yodea 5 humshey tora
+  #ifndef NONE
   struct meta_page filePages[MAX_TOTAL_PAGES];  //struct of the file pages
   int offsets_in_swap_file[MAX_DISC_PAGES];    //indicate which offset (*4096) in file is free
   int num_of_physical_pages;      // physical pages
@@ -130,5 +132,6 @@ struct proc {
 
   #ifdef SCFIFO
   int nextQnumber;              //number page will get for queue in scfifo
+  #endif
   #endif
 };

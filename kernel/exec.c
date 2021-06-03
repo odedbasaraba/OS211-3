@@ -39,7 +39,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-
+#ifndef NONE
   if(p->pid>2){
 
   if(p->swapFile){
@@ -47,7 +47,6 @@ exec(char *path, char **argv)
 
   }
       createSwapFile(p);
-        // printf("swap file pointer value for pid %d in exexc: %p\n",p->pid,p->swapFile);
 
         p->num_of_total_pages=0;
   p->num_of_physical_pages=0;
@@ -62,8 +61,7 @@ exec(char *path, char **argv)
     p->filePages[i].on_phys=0;
     p->filePages[i].va=0;
     #ifdef SCFIFO
-    printf("SCFIFO\n");
-    p->filePages[i].nextQnumber=0;
+    p->filePages[i].qnumber=0;
     #endif
 
     #ifdef NFUA
@@ -75,7 +73,9 @@ exec(char *path, char **argv)
     #endif
 
   }
+
   }
+  #endif
 
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))

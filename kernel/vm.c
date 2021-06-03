@@ -169,7 +169,6 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
   uint64 a;
   pte_t *pte;
-  struct proc * p =myproc();
   if((va % PGSIZE) != 0)
     panic("uvmunmap: not aligned");
 
@@ -180,8 +179,10 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
-    if((*pte & PTE_PG)>0)
+  #ifndef NONE
+    else if((*pte & PTE_PG)>0) //if not in physical memory
       {
+  struct proc * p =myproc();
         for (int i = 0; i < MAX_TOTAL_PAGES; i++)
         {
           if(*pte == p->filePages[i].entry)
@@ -193,7 +194,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             p->filePages[i].offset_in_file=-1;
             p->filePages[i].on_phys=0;
             #ifdef SCFIFO
-            p->filePages[i].nextQnumber=0;
+            p->filePages[i].qnumber=0;
             #endif
              
     #ifdef NFUA
@@ -203,16 +204,21 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     #ifdef LAPA
     p->filePages[i]counter=0xFFFFFFFF;
     #endif
+
             break;
           }
         }
 /*         printf("UNMAP  p->num_of_total_pages--...  p->num_of_total_pages value : %d\n", p->num_of_total_pages); 
  */        p->num_of_total_pages--;
       }
+    #endif
+
     else if (do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
-    
+    #ifndef NONE
+      struct proc * p =myproc();
+
     for (int i = 0; i < MAX_TOTAL_PAGES; i++)
         {
           if(*pte == p->filePages[i].entry)
@@ -225,7 +231,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
             p->filePages[i].offset_in_file=-1;
             p->filePages[i].on_phys=0;
             #ifdef SCFIFO
-            p->filePages[i].nextQnumber=0;
+            p->filePages[i].qnumber=0;
             #endif
              
             #ifdef NFUA
@@ -242,6 +248,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
     p->num_of_total_pages--;
     p->num_of_physical_pages--;
+    #endif
     }
     *pte = 0;
   }
@@ -293,7 +300,7 @@ get_page_to_swap_scfifo(){
       if(*((pte_t*)p->filePages[minIndex].entry)& PTE_A)
       {
         *(pte_t*)p->filePages[minIndex].entry&= ~PTE_A; //turn off flag
-        p->filePages[j].qnumber=++p->nextQnumber; // give it a new qnumber
+        p->filePages[minIndex].qnumber=++p->nextQnumber; // give it a new qnumber
       }
       else
         return minIndex;
@@ -364,7 +371,7 @@ get_page_to_swap_LAPA(){
 
 }
 #endif
-
+#ifndef NONE
 int
 get_page_to_swap(void)
 {
@@ -511,13 +518,12 @@ find_free_slot(struct proc* p ){
   
   return -1;
 }
-
+#endif
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 uint64
-uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
+  uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 {
-  struct proc *p=myproc();
   char *mem;
   uint64 a;
 
@@ -526,26 +532,25 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   oldsz = PGROUNDUP(oldsz);
   for(a = oldsz; a < newsz; a += PGSIZE){
-    #ifndef NONE
+  
 
-    #endif
 
     mem = kalloc();
     if(mem == 0){
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
-    memset(mem, 0, PGSIZE);
-    //check that there is not 16 pages inside RAM at the moment
-    //if so , move one to swap file
+  
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
       kfree(mem);
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
-    pte_t* pt_entry = walk(pagetable,a,0);
     //TODO: add the pte to the new struct
-    if(p->num_of_total_pages==32)
+    #ifndef NONE
+    pte_t* pt_entry = walk(pagetable,a,0);
+    struct proc *p=myproc();
+    if(p->num_of_total_pages==MAX_TOTAL_PAGES)
     panic("f");
     int index=find_free_slot(p);
     if(index!=-1){
@@ -568,6 +573,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     p->filePages[index]counter=0xFFFFFFFF;
     #endif
     }
+    #endif
   }
   return newsz;
 }
@@ -630,7 +636,7 @@ int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
-  uint64 pa, i;
+  uint64 i;
   uint flags;
   char *mem;
 
@@ -643,10 +649,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
  
 
-    pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
 mem=0;
    #ifndef NONE
+  uint64 pa;
+    pa = PTE2PA(*pte);
    
     if(*pte & PTE_PG){ //original page on disk
       

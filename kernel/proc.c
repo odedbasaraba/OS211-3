@@ -142,11 +142,11 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  #ifndef NONE
   //task 1 -initialinzg the new fields
-  // p->swapFile=0;
+
   p->num_of_physical_pages = 0;
   p->num_of_total_pages = 0;
-  #ifndef NONE
     for (int i = 0; i < MAX_TOTAL_PAGES; i++)
     {
       p->filePages[i].entry=(uint64) 0;
@@ -155,7 +155,7 @@ found:
       p->filePages[i].offset_in_file=-1;
       p->filePages[i].on_phys=0;  
       #ifdef SCFIFO
-      p->filePages[i].nextQnumber=0;
+      p->filePages[i].qnumber=0;
       #endif
        
     #ifdef NFUA
@@ -199,6 +199,7 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
   //Task 1 : free new fields
+  #ifndef NONE
    for(int i=0;i<MAX_DISC_PAGES;i++){
     p->offsets_in_swap_file[i]=i;
     
@@ -210,7 +211,7 @@ freeproc(struct proc *p)
     p->filePages[i].on_phys=0;
     p->filePages[i].va=0;
     #ifdef SCFIFO
-    p->filePages[i].nextQnumber=0;
+    p->filePages[i].qnumber=0;
     #endif
      
     #ifdef NFUA
@@ -223,7 +224,7 @@ freeproc(struct proc *p)
   }
   p->num_of_physical_pages = 0;
   p->num_of_total_pages = 0;  
-
+#endif
 }
 
 // Create a user page table for a given process,
@@ -364,10 +365,10 @@ fork(void)
 
   pid = np->pid;
   //Task 1: copy the new fields
+   #ifndef NONE
   np->num_of_physical_pages= p->num_of_physical_pages;
   np->num_of_total_pages = p->num_of_total_pages;
 
-   #ifndef NONE
   if(p->swapFile){
     //create here?
     copySwapFile(np,p);
@@ -398,6 +399,7 @@ fork(void)
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
+  #ifndef NONE
   if(np->pid>2)
   { 
 
@@ -405,12 +407,14 @@ fork(void)
         //  printf("swap file pointer value for pid %d in fork: %p",np->pid,p->swapFile);
 
   }
+  #endif
 
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
   return pid;
 }
+#ifndef NONE
 //TASK 1 : copy the swap file
 void
 copySwapFile(struct proc* np,struct proc* p)
@@ -430,7 +434,7 @@ copySwapFile(struct proc* np,struct proc* p)
   kfree(pageBuffer);
   
 }
-
+#endif
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void
@@ -472,8 +476,9 @@ exit(int status)
 
   //TASK 1:remove the swap file
   // printf("swap file pointer value for pid %d before delete: %p\n",p->pid,p->swapFile);
+  #ifndef NONE
   removeSwapFile(p);
-
+#endif
   acquire(&wait_lock);
 
   // Give any children to init.

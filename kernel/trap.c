@@ -66,7 +66,7 @@ usertrap(void)
 
     syscall();
   } 
-   
+   #ifndef NONE
   else if(r_scause()==13||r_scause()==15 || r_scause() == 12)
   {
     struct proc * p =myproc();
@@ -109,6 +109,7 @@ usertrap(void)
 
 
   }
+  #endif
   else if((which_dev = devintr()) != 0){
     // ok
   } 
@@ -189,6 +190,7 @@ kerneltrap()
     panic("kerneltrap: not from supervisor mode");
   if(intr_get() != 0)
     panic("kerneltrap: interrupts enabled");
+    #ifndef NONE
   if(r_scause()==13||r_scause()==15 || r_scause() == 12)
   {
     struct proc * p =myproc();
@@ -231,6 +233,7 @@ kerneltrap()
 
 
   }
+  #endif
   if((which_dev = devintr()) == 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
